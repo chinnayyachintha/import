@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/binbash
 
 aws lambda list-functions --query 'Functions[*].FunctionArn' --output yaml | \
 awk '/^-/ {gsub(/^- /, ""); print}' | while read arn; do
