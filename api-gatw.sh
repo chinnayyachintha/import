@@ -14,9 +14,9 @@ echo "Creating $API_FILE to store imported API Gateway resources..."
 echo "# API Gateway Resources" > $API_FILE
 
 # Import the main API Gateway
-echo "Importing API Gateway: $API_GATEWAY_ID"
-terraform import aws_api_gateway_rest_api.api_gateway "$API_GATEWAY_ID"
+echo "Creating and importing API Gateway: $API_GATEWAY_ID"
 echo 'resource "aws_api_gateway_rest_api" "api_gateway" {}' >> $API_FILE
+terraform import aws_api_gateway_rest_api.api_gateway "$API_GATEWAY_ID"
 
 # Fetch all resources from the API Gateway
 echo "Fetching resources for API Gateway..."
@@ -27,11 +27,11 @@ echo "Importing API Gateway resources..."
 while read -r RESOURCE_ID RESOURCE_PATH; do
   RESOURCE_NAME=$(echo "$RESOURCE_PATH" | sed 's/[\/{}]/_/g' | sed 's/_$//')
   
+  # Add the resource block first
+  echo "resource \"aws_api_gateway_resource\" \"resource_$RESOURCE_NAME\" {}" >> $API_FILE
+  
   echo "Importing resource: $RESOURCE_PATH (ID: $RESOURCE_ID)"
   terraform import aws_api_gateway_resource.resource_"$RESOURCE_NAME" "$API_GATEWAY_ID/$RESOURCE_ID"
-  
-  # Add resource to the api.tf file
-  echo "resource \"aws_api_gateway_resource\" \"resource_$RESOURCE_NAME\" {}" >> $API_FILE
 done <<< "$RESOURCES"
 
 # Import methods (GET, POST, etc.) for each resource
@@ -41,11 +41,12 @@ for RESOURCE_ID in $(echo "$RESOURCES" | awk '{print $1}'); do
 
   for METHOD in $METHODS; do
     METHOD_NAME=$(echo "$METHOD" | tr '[:upper:]' '[:lower:]')
+    
+    # Add method block
+    echo "resource \"aws_api_gateway_method\" \"method_${RESOURCE_ID}_${METHOD_NAME}\" {}" >> $API_FILE
+    
     echo "Importing method: $METHOD for resource ID: $RESOURCE_ID"
     terraform import aws_api_gateway_method.method_"$RESOURCE_ID"_"$METHOD_NAME" "$API_GATEWAY_ID/$RESOURCE_ID/$METHOD"
-    
-    # Add method to the api.tf file
-    echo "resource \"aws_api_gateway_method\" \"method_${RESOURCE_ID}_${METHOD_NAME}\" {}" >> $API_FILE
   done
 done
 
